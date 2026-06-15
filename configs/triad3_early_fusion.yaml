@@ -1,0 +1,13 @@
+name: triad3-yolo11m-early-fusion
+fusion: triad3
+model: yolo11m.pt
+imgsz: 960
+batch: -1
+workers: 16
+epochs: 120
+seed: 42
+channels:
+  0: RGB luminance
+  1: CLAHE-enhanced infrared
+  2: clipped normalized depth
+notes: YOLO-compatible early fusion without modifying the detector architecture.

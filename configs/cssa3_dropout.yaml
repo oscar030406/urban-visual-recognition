@@ -1,0 +1,15 @@
+name: cssa3-dropout-yolo11m
+fusion: cssa3
+model: yolo11m.pt
+imgsz: 960
+batch: -1
+workers: 16
+epochs: 140
+seed: 42
+prepare_args:
+  modality_dropout: true
+channels:
+  0: CSSA-lite attended RGB luminance
+  1: CLAHE-enhanced infrared
+  2: clipped normalized depth
+notes: CSSA-inspired spatial saliency fusion plus offline modality-dropout variants.

@@ -1,0 +1,18 @@
+name: cssa3-depthfix-dropout-yolo11m
+fusion: cssa3
+model: yolo11m.pt
+imgsz: 960
+batch: auto-free
+workers: 16
+epochs: 140
+seed: 42
+prepare_args:
+  modality_dropout: true
+depth_normalization:
+  uint16: clamp millimeter depth to 100-20000 and map to uint8
+  uint8: preserve depth intensity and use nonzero valid mask
+channels:
+  0: CSSA-lite attended RGB luminance
+  1: CLAHE-enhanced infrared
+  2: robust normalized depth
+notes: Fixes 8-bit JPG depth maps being collapsed by millimeter normalization.

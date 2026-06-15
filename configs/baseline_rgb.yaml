@@ -1,0 +1,9 @@
+name: rgb-yolo11m-baseline
+fusion: rgb
+model: yolo11m.pt
+imgsz: 960
+batch: -1
+workers: 16
+epochs: 100
+seed: 42
+notes: RGB-only baseline. Use this first to verify labels, metrics, and submission format.
