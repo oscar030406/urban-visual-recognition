@@ -1,0 +1,13 @@
+stage,candidate,change,platform_score,note
+baseline,submission_rgb_guided_rdt_yolo11m_ft2_i1408_c0005_iou065_tta_checked.zip,early stable baseline,50.0380,stable first mainline score
+global_threshold,submission_lockedbest_i1408_c0015_iou065_tta_checked.zip,more conservative global confidence,50.6880,best global-threshold family
+classsafe_a,submission_classsafe_a_rare003_i1408_iou065_tta_checked.zip,raise rare-class thresholds,50.75,class-level false-positive reduction
+classsafe_b,submission_classsafe_b_rare003_sign002_i1408_iou065_tta_checked.zip,rare thresholds plus sign adjustment,50.77,small improvement
+classsafe_c,submission_classsafe_c_rare003_sign002_person002_i1408_iou065_tta_checked.zip,further person threshold adjustment,50.78,classsafe baseline for diagnosis
+diag_sign003,submission_diag_sign003_from_best_i1408_iou065_tta_checked.zip,raise sign threshold only,50.80,single-class diagnosis
+diag_bicycle002,submission_diag_bicycle002_from_best_i1408_iou065_tta_checked.zip,raise bicycle threshold only,50.80,single-class diagnosis
+diag_car002,submission_diag_car002_from_best_i1408_iou065_tta_checked.zip,raise car threshold only,50.79,single-class diagnosis
+diag_light002,submission_diag_light002_from_best_i1408_iou065_tta_checked.zip,raise light threshold only,50.79,single-class diagnosis
+diag_animal002,submission_diag_animal002_from_best_i1408_iou065_tta_checked.zip,raise animal threshold only,50.8010,single-class diagnosis
+diag_person003,submission_diag_person003_from_best_i1408_iou065_tta_checked.zip,raise person threshold only,50.8190,current best
+

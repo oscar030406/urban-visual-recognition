@@ -1,135 +1,185 @@
-# 全球校园人工智能算法 - 城市场景视觉多模态目标检测
+# 面向城市场景的视觉多模态目标检测
 
-本项目实现“面向城市场景的视觉多模态目标检测”赛题的工程化方案。RGB YOLO 只作为链路验证和消融 baseline；正式提交默认使用 RGB/Infrared/Depth 三模态融合模型。
+本项目用于全球校园人工智能算法赛“面向城市场景的视觉多模态目标检测”赛题。
 
-## 当前能力
+当前主线方案是 `YOLO11M + RGB-guided-RDT`：保留 RGB 预训练检测器的稳定性，同时把红外和深度作为空间显著性引导，生成 YOLO 可直接训练和推理的三通道输入。
 
-- 自动发现并配对 `RGB`、`Infrared`、`Depth`、`labels` 目录。
-- 已适配官方样例命名：`visible`、`infrared`、`depth`、`labels`。
-- 校验 YOLO 标签：`class_id norm_center_x norm_center_y norm_w norm_h`。
-- 生成 Ultralytics 标准训练目录和 `data.yaml`。
-- 支持两种输入：
-  - `rgb`：RGB-only baseline，仅用于链路验证和消融，不作为官方推荐提交；
-  - `triad3`：RGB 亮度 + 红外增强 + 深度归一化三通道早期融合。
-  - `cssa3`：基于红外/近距离深度显著图的轻量空间注意力融合。
-- 支持 `--modality-dropout` 离线扩增，生成 `drop_rgb/drop_ir/drop_depth` 训练样本，提升模态质量下降时的鲁棒性。
-- 训练、验证、推理和官方 TXT 提交文件生成。
-- 每张测试图强制生成同名 TXT；无检测则空文件；最多 100 框。
+## 当前结果
+
+| 项目 | 结果 |
+|---|---:|
+| 早期稳定提交 | 50.0380 |
+| 当前最好提交 | 50.8190 |
+| 提升 | +0.7810 |
+
+当前最好提交包：
+
+```text
+artifacts/final/submission_best_50.8190_person003.zip
+```
+
+对应权重：
+
+```text
+artifacts/final/rgb_guided_rdt_yolo11m_1280_ft2_e70_best.pt
+```
+
+`artifacts/final/` 下的大文件默认不进入 Git，交接项目文件夹时需要一起保留。
+
+## 目录结构
+
+```text
+configs/      主线实验配置
+data/         官方原始数据，未纳入 Git
+docs/         报告和实验摘要
+scripts/      数据检查、训练、验证、推理、提交脚本
+src/          项目公共代码
+tests/        轻量单元测试
+artifacts/    最终权重和最好提交包，未纳入 Git
+references/   赛题文档和保留论文资料
+```
 
 ## 环境
 
-建议服务器使用 Python 3.10-3.12。服务器说明见 [docs/server_runbook.md](docs/server_runbook.md) 和本地 [SERVER.md](SERVER.md)。
-
-远端只使用 `oscar` 账号和 `/home/oscar/global-campus-ai-algorithm`，不要使用共享账号，也不要复用 `/home/oscar/minimind`。
+建议使用 Python 3.10 到 3.12。
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
+python -m pip install -U pip
 python -m pip install -r requirements.txt
 ```
 
-Windows 本地只建议做代码检查和小样本验证，正式训练放到 MindSurf 4090 服务器。
+Windows PowerShell：
 
-## 快速流程
-
-没有官方数据时，可以先生成一个合成小样本做烟测：
-
-```bash
-python scripts/make_sample_dataset.py --out-root tmp/sample_official_dataset --count 8 --size 128
-python scripts/inspect_dataset.py --raw-root tmp/sample_official_dataset
-python scripts/prepare_dataset.py --raw-root tmp/sample_official_dataset --out-root tmp/prepared_triad3 --fusion triad3
+```powershell
+python -m venv .venv
+.\.venv\Scripts\activate
+python -m pip install -U pip
+python -m pip install -r requirements.txt
 ```
 
-检查数据：
+训练和推理全程离线。公开预训练权重允许使用，但应提前下载到本地，例如 `weights/yolo11m.pt`。
 
-```bash
-python scripts/inspect_dataset.py --raw-root /path/to/official/train
+## 数据要求
+
+官方数据目录应包含三模态图像和标签：
+
+```text
+RGB / visible
+Infrared / infrared
+Depth / depth
+labels
 ```
 
-准备 RGB baseline：
+训练标签格式：
 
-```bash
-python scripts/prepare_dataset.py --raw-root /path/to/official/train --out-root datasets/city_rgb --fusion rgb
+```text
+class_id norm_center_x norm_center_y norm_w norm_h
 ```
 
-准备三模态早期融合：
+提交结果格式：
 
-```bash
-python scripts/prepare_dataset.py --raw-root /path/to/official/train --out-root datasets/city_triad3 --fusion triad3
+```text
+class_id norm_center_x norm_center_y norm_w norm_h confidence
 ```
 
-准备论文驱动的 `cssa3 + modality dropout` 实验：
+每张测试图必须有一个同名 TXT；无检测结果时生成空 TXT。
+
+## 复现流程
+
+检查官方训练数据：
 
 ```bash
-python scripts/prepare_dataset.py \
-  --raw-root /path/to/official/train \
-  --out-root datasets/city_cssa3_dropout \
-  --fusion cssa3 \
-  --modality-dropout \
-  --workers 16
+python scripts/inspect_dataset.py --raw-root data/训练集/AIC2026_Train_2000
+```
+
+准备 RGB-guided-RDT 数据：
+
+```powershell
+python scripts/prepare_dataset.py `
+  --raw-root data/训练集/AIC2026_Train_2000 `
+  --out-root datasets/city_rgb_guided_rdt `
+  --fusion rgb_guided_rdt
 ```
 
 训练：
 
-```bash
-python scripts/train_yolo.py --data datasets/city_triad3/data.yaml --model yolo11m.pt --epochs 120 --imgsz 960 --batch -1 --workers 16 --name triad3_yolo11m
+```powershell
+python scripts/train_yolo.py `
+  --data datasets/city_rgb_guided_rdt/data.yaml `
+  --model weights/yolo11m.pt `
+  --epochs 100 `
+  --imgsz 1280 `
+  --batch auto-free `
+  --workers 16 `
+  --name rgb_guided_rdt_yolo11m
 ```
 
 验证：
 
-```bash
-python scripts/validate_yolo.py --weights outputs/runs/triad3_yolo11m/weights/best.pt --data datasets/city_triad3/data.yaml
+```powershell
+python scripts/validate_yolo.py `
+  --weights outputs/runs/rgb_guided_rdt_yolo11m/weights/best.pt `
+  --data datasets/city_rgb_guided_rdt/data.yaml `
+  --imgsz 1280
 ```
 
-推理并打包提交：
+生成普通提交包：
 
-```bash
-python scripts/predict_submit.py \
-  --weights outputs/runs/triad3_yolo11m/weights/best.pt \
-  --raw-root /path/to/official/test \
-  --fusion triad3 \
-  --out-dir outputs/submission_txt \
+```powershell
+python scripts/predict_submit.py `
+  --weights artifacts/final/rgb_guided_rdt_yolo11m_1280_ft2_e70_best.pt `
+  --raw-root data/测试集/AIC2026_PHASE_1_1000 `
+  --fusion rgb_guided_rdt `
+  --imgsz 1408 `
+  --conf 0.0015 `
+  --iou 0.65 `
+  --augment `
+  --out-dir outputs/submission_txt `
   --zip-path outputs/submission.zip
 ```
 
-官方提交模型选择：
+生成当前最好类别阈值提交包：
 
-```bash
-python scripts/select_best_run.py --project-dir outputs/runs --require-finished --json
+```powershell
+python scripts/predict_class_threshold_submit.py `
+  --weights artifacts/final/rgb_guided_rdt_yolo11m_1280_ft2_e70_best.pt `
+  --raw-root data/测试集/AIC2026_PHASE_1_1000 `
+  --fusion rgb_guided_rdt `
+  --imgsz 1408 `
+  --base-conf 0.0015 `
+  --iou 0.65 `
+  --augment `
+  --class-conf person:0.003 `
+  --out-dir outputs/submission_person003_txt `
+  --zip-path outputs/submission_person003.zip
 ```
 
-该命令默认只在 `triad3/cssa3` 三模态候选中选择。若只是做 RGB baseline 消融分析，才显式加入：
+校验提交包：
 
-```bash
-python scripts/select_best_run.py --project-dir outputs/runs --allow-rgb-baseline --json
+```powershell
+python scripts/validate_submission.py `
+  --submission outputs/submission_person003.zip `
+  --raw-root data/测试集/AIC2026_PHASE_1_1000
 ```
-
-## 实验路线
-
-1. RGB YOLO baseline：确认数据、标签、训练和提交全链路，仅作 baseline。
-2. `triad3` 三模态早期融合：低风险引入红外和深度。
-3. `cssa3 + modality dropout`：引入轻量空间注意力和模态退化增强。
-4. 提高输入尺寸并优化小目标召回。
-5. 调整 confidence、NMS 和 TTA。
-6. 视排行榜反馈推进三分支特征级融合。当前已完成的是三模态早期融合和轻量空间注意力融合，不应在报告中写成已实现三分支 backbone。
-
-## 服务器并行策略
-
-MindSurf 是 4090/24GB，服务器训练默认按高并行配置使用：
-
-- `scripts/prepare_dataset.py` 默认最多 16 个 workers 并行生成 triad3 图像。
-- `scripts/train_yolo.py` 默认 `--batch -1`，由 Ultralytics 自动估计 batch size，目标是更充分利用显存。
-- 默认 `--workers 16` 加速 dataloader。
-
-正式长任务前仍运行 `nvidia-smi`，确认没有占满 GPU 的其他任务。
 
 ## 测试
 
-当前测试覆盖图像预处理、标签解析、数据目录发现、提交格式和 Ultralytics 结果转换。
+```bash
+python -m pytest tests
+```
+
+若 Windows 默认临时目录导致 pytest 异常，可临时指定：
 
 ```powershell
-$env:TEMP='D:\UserData\Desktop\全球校园人工智能算法\tmp'
+$env:TEMP="$PWD\tmp"
 $env:TMP=$env:TEMP
 python -m pytest tests
 ```
+
+## 报告
+
+- `docs/实验报告_给老师.md`
+- `docs/赛题零基础导读.md`
+- `docs/实验结果摘要.csv`

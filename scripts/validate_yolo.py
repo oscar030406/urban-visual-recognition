@@ -24,8 +24,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--augment", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--project", default="outputs/val")
     parser.add_argument("--name", default=None)
-    parser.add_argument("--aux-gate", choices=["none", "p3p4p5"], default="none")
-    parser.add_argument("--aux-gate-alpha-init", type=float, default=0.1)
     return parser.parse_args()
 
 
@@ -34,13 +32,8 @@ def main() -> None:
     os.environ.setdefault("YOLO_CONFIG_DIR", str((Path.cwd() / ".ultralytics").resolve()))
 
     from ultralytics import YOLO
-    from city_multimodal_detection.yolo_attention import attach_aux_pyramid_gates, register_ultralytics_attention
 
-    register_ultralytics_attention()
     model = YOLO(str(args.weights))
-    if args.aux_gate == "p3p4p5":
-        gates = attach_aux_pyramid_gates(model.model, alpha=args.aux_gate_alpha_init)
-        print(f"enabled AuxPyramidGates on layers {sorted(gates.layer_channels)}")
     metrics = model.val(
         data=str(args.data),
         imgsz=args.imgsz,
