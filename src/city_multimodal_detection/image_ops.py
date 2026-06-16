@@ -73,10 +73,8 @@ def normalize_depth_to_uint8(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Normalize depth to uint8 and return a valid-depth mask.
 
-    Official depth PNG files are 16-bit millimeter maps, but the released data also
-    contains 8-bit JPG depth maps. Treating those JPG values as millimeters collapses
-    most of the depth channel to zero, so uint8 depth is preserved as an image-space
-    depth prior while uint16 depth keeps the millimeter normalization.
+    The dataset contains both 16-bit PNG depth maps and 8-bit JPG depth maps.
+    PNG depth is treated as millimeters; 8-bit depth is kept in image scale.
     """
     if depth.ndim == 3:
         depth = depth[..., 0]
@@ -118,7 +116,7 @@ def make_triad_image(
     min_depth: int = 100,
     max_depth: int = 20_000,
 ) -> np.ndarray:
-    """Build a YOLO-compatible 3-channel fusion image: RGB luma, enhanced IR, normalized depth."""
+    """Build a 3-channel image from RGB luma, infrared, and depth."""
     rgb_channel = rgb_luma(rgb)
     ir_channel = enhance_infrared(infrared, use_clahe=use_clahe)
     depth_channel, _ = normalize_depth_to_uint8(depth, min_depth=min_depth, max_depth=max_depth)
@@ -162,7 +160,7 @@ def stack_single_channel(channel: np.ndarray) -> np.ndarray:
 
 
 def make_infrared_image(infrared: np.ndarray, use_clahe: bool = True) -> np.ndarray:
-    """Build a YOLO-compatible infrared-only diagnostic image."""
+    """Build a three-channel infrared image."""
     return stack_single_channel(enhance_infrared(infrared, use_clahe=use_clahe))
 
 
@@ -171,7 +169,7 @@ def make_depth_image(
     min_depth: int = 100,
     max_depth: int = 20_000,
 ) -> np.ndarray:
-    """Build a YOLO-compatible depth-only diagnostic image."""
+    """Build a three-channel depth image."""
     depth_channel, _ = normalize_depth_to_uint8(depth, min_depth=min_depth, max_depth=max_depth)
     return stack_single_channel(depth_channel)
 
@@ -249,12 +247,7 @@ def make_rgb_guided_rdt_image(
     base_gate: float = 0.85,
     gain: float = 0.30,
 ) -> np.ndarray:
-    """Preserve RGB distribution while IR and depth provide spatial guidance.
-
-    The output remains a normal 3-channel color image, so COCO-pretrained YOLO
-    filters keep seeing RGB-like inputs. Infrared and near-depth signals only
-    modulate local brightness instead of replacing color channels.
-    """
+    """Use infrared and near-depth response as a gain map over RGB."""
     rgb = _require_color_image(rgb)
     ir_channel = enhance_infrared(infrared, use_clahe=use_clahe)
     depth_channel, valid_mask = normalize_depth_to_uint8(
@@ -283,7 +276,7 @@ def make_rgb_guided_rdt_v2_image(
     min_depth: int = 100,
     max_depth: int = 20_000,
 ) -> np.ndarray:
-    """A conservative RGB-guided RDT variant with weaker IR/depth gain."""
+    """RGB-guided RDT with weaker IR/depth gain."""
     return make_rgb_guided_rdt_image(
         rgb=rgb,
         infrared=infrared,
@@ -306,7 +299,7 @@ def make_rgb_guided_rdt_v3_image(
     min_depth: int = 100,
     max_depth: int = 20_000,
 ) -> np.ndarray:
-    """A depth-heavier RGB-guided RDT variant for geometry-sensitive boxes."""
+    """RGB-guided RDT with a larger depth weight."""
     return make_rgb_guided_rdt_image(
         rgb=rgb,
         infrared=infrared,
@@ -329,12 +322,7 @@ def make_cssa_lite_image(
     min_depth: int = 100,
     max_depth: int = 20_000,
 ) -> np.ndarray:
-    """Build a CSSA-inspired 3-channel image with IR/depth spatial attention.
-
-    This is not a reimplementation of the paper's network module. It is a low-risk
-    preprocessing variant that preserves YOLO compatibility while injecting a spatial
-    saliency prior from thermal and valid near-depth regions.
-    """
+    """Build a 3-channel image using IR/depth response to weight RGB luma."""
     rgb_channel = rgb_luma(rgb)
     ir_channel = enhance_infrared(infrared, use_clahe=use_clahe)
     depth_channel, valid_mask = normalize_depth_to_uint8(
@@ -370,54 +358,3 @@ def apply_modality_dropout(image: np.ndarray, channels: list[int] | tuple[int, .
             raise ValueError(f"channel index out of range: {channel}")
         output[..., channel] = 0
     return output
-
-
-def make_rgb_ir_depth_gate_array(
-    rgb: np.ndarray,
-    infrared: np.ndarray,
-    depth: np.ndarray,
-    use_clahe: bool = True,
-    min_depth: int = 100,
-    max_depth: int = 20_000,
-) -> np.ndarray:
-    """Build a 5-channel uint8 image for RGB-main IR/depth-gated models.
-
-    The first three channels are RGB-ordered color channels because Ultralytics
-    only applies BGR-to-RGB reordering to normal 3-channel images. The final two
-    channels are enhanced infrared and normalized depth.
-    """
-    rgb = _require_color_image(rgb)
-    ir_channel = enhance_infrared(infrared, use_clahe=use_clahe)
-    depth_channel, _ = normalize_depth_to_uint8(depth, min_depth=min_depth, max_depth=max_depth)
-    _check_spatial_match(rgb, ir_channel, depth_channel)
-    rgb_order = rgb[..., :3][..., ::-1]
-    return np.dstack([rgb_order, ir_channel, depth_channel]).astype(np.uint8)
-
-
-def make_rgb_guided_rdt_gate_array(
-    rgb: np.ndarray,
-    infrared: np.ndarray,
-    depth: np.ndarray,
-    use_clahe: bool = True,
-    min_depth: int = 100,
-    max_depth: int = 20_000,
-) -> np.ndarray:
-    """Build 5-channel input with rgb_guided_rdt as RGB-main channels.
-
-    The first three channels match the RGB-like distribution used by the locked
-    best rgb_guided_rdt detector, while IR and depth remain available as raw
-    auxiliary gate channels.
-    """
-    guided = make_rgb_guided_rdt_image(
-        rgb=rgb,
-        infrared=infrared,
-        depth=depth,
-        use_clahe=use_clahe,
-        min_depth=min_depth,
-        max_depth=max_depth,
-    )
-    ir_channel = enhance_infrared(infrared, use_clahe=use_clahe)
-    depth_channel, _ = normalize_depth_to_uint8(depth, min_depth=min_depth, max_depth=max_depth)
-    _check_spatial_match(guided, ir_channel, depth_channel)
-    guided_rgb_order = guided[..., :3][..., ::-1]
-    return np.dstack([guided_rgb_order, ir_channel, depth_channel]).astype(np.uint8)

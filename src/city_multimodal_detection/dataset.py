@@ -7,8 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
-
 from .constants import (
     DEPTH_ALIASES,
     IMAGE_EXTENSIONS,
@@ -26,8 +24,6 @@ from .image_ops import (
     make_rgb_guided_rdt_image,
     make_rgb_guided_rdt_v2_image,
     make_rgb_guided_rdt_v3_image,
-    make_rgb_guided_rdt_gate_array,
-    make_rgb_ir_depth_gate_array,
     make_triad_image,
     read_image,
     write_image,
@@ -45,8 +41,6 @@ FUSION_CHOICES = (
     "rgb_guided_rdt",
     "rgb_guided_rdt_v2",
     "rgb_guided_rdt_v3",
-    "rgb_ir_depth_gate5",
-    "rgb_guided_rdt_gate5",
 )
 MODALITY_DROPOUT_FUSIONS = {"triad3", "cssa3"}
 OFFICIAL_THREE_MODAL_FUSIONS = {
@@ -55,8 +49,6 @@ OFFICIAL_THREE_MODAL_FUSIONS = {
     "rgb_guided_rdt",
     "rgb_guided_rdt_v2",
     "rgb_guided_rdt_v3",
-    "rgb_ir_depth_gate5",
-    "rgb_guided_rdt_gate5",
 }
 
 
@@ -232,16 +224,6 @@ def materialize_record_image(
         image = make_rgb_guided_rdt_v2_image(rgb, infrared, depth, use_clahe=use_clahe)
     elif fusion == "rgb_guided_rdt_v3":
         image = make_rgb_guided_rdt_v3_image(rgb, infrared, depth, use_clahe=use_clahe)
-    elif fusion == "rgb_ir_depth_gate5":
-        image = rgb
-        gate_array = make_rgb_ir_depth_gate_array(rgb, infrared, depth, use_clahe=use_clahe)
-        output_image.parent.mkdir(parents=True, exist_ok=True)
-        np.save(output_image.with_suffix(".npy"), gate_array)
-    elif fusion == "rgb_guided_rdt_gate5":
-        image = make_rgb_guided_rdt_image(rgb, infrared, depth, use_clahe=use_clahe)
-        gate_array = make_rgb_guided_rdt_gate_array(rgb, infrared, depth, use_clahe=use_clahe)
-        output_image.parent.mkdir(parents=True, exist_ok=True)
-        np.save(output_image.with_suffix(".npy"), gate_array)
     else:  # pragma: no cover - guarded by FUSION_CHOICES.
         raise ValueError(f"unsupported fusion: {fusion}")
     if drop_channels:
@@ -338,9 +320,8 @@ def prepare_yolo_dataset(
     if require_labels:
         data_yaml = output_root / "data.yaml"
         val_path = "images/val" if "val" in splits else "images/train"
-        channels = 5 if fusion in {"rgb_ir_depth_gate5", "rgb_guided_rdt_gate5"} else 3
         data_yaml.write_text(
-            make_data_yaml(output_root, CLASS_NAMES, val_path=val_path, channels=channels),
+            make_data_yaml(output_root, CLASS_NAMES, val_path=val_path, channels=3),
             encoding="utf-8",
         )
         return data_yaml

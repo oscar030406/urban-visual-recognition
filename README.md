@@ -1,35 +1,35 @@
 # 面向城市场景的视觉多模态目标检测
 
-本项目用于全球校园人工智能算法赛“面向城市场景的视觉多模态目标检测”赛题。
+全球校园人工智能算法赛“面向城市场景的视觉多模态目标检测”项目代码。
 
-当前主线方案是 `YOLO11M + RGB-guided-RDT`：保留 RGB 预训练检测器的稳定性，同时把红外和深度作为空间显著性引导，生成 YOLO 可直接训练和推理的三通道输入。
+方案基于 `YOLO11M + RGB-guided-RDT`。处理方式是保留 RGB 图像的三通道形式，用红外和深度图生成一个空间权重，对 RGB 局部亮度做调制。这样可以继续使用 YOLO 的公开预训练权重，同时引入三模态信息。
 
 ## 当前结果
 
 | 项目 | 结果 |
 |---|---:|
 | 早期稳定提交 | 50.0380 |
-| 当前最好提交 | 50.8190 |
+| 最好提交 | 50.8190 |
 | 提升 | +0.7810 |
 
-当前最好提交包：
+最好提交包：
 
 ```text
 artifacts/final/submission_best_50.8190_person003.zip
 ```
 
-对应权重：
+对应模型权重：
 
 ```text
 artifacts/final/rgb_guided_rdt_yolo11m_1280_ft2_e70_best.pt
 ```
 
-`artifacts/final/` 下的大文件默认不进入 Git，交接项目文件夹时需要一起保留。
+`artifacts/final/` 下的大文件不进 Git。交接完整项目时需要单独保留这个目录。
 
 ## 目录结构
 
 ```text
-configs/      主线实验配置
+configs/      实验配置
 data/         官方原始数据，未纳入 Git
 docs/         报告和实验摘要
 scripts/      数据检查、训练、验证、推理、提交脚本
@@ -59,7 +59,7 @@ python -m pip install -U pip
 python -m pip install -r requirements.txt
 ```
 
-训练和推理全程离线。公开预训练权重允许使用，但应提前下载到本地，例如 `weights/yolo11m.pt`。
+训练和推理按离线流程执行。公开预训练权重需要提前下载到本地，例如 `weights/yolo11m.pt`。
 
 ## 数据要求
 
@@ -140,7 +140,7 @@ python scripts/predict_submit.py `
   --zip-path outputs/submission.zip
 ```
 
-生成当前最好类别阈值提交包：
+生成最好分数对应的类别阈值提交包：
 
 ```powershell
 python scripts/predict_class_threshold_submit.py `
@@ -180,6 +180,5 @@ python -m pytest tests
 
 ## 报告
 
-- `docs/实验报告_给老师.md`
-- `docs/赛题零基础导读.md`
+- `docs/阶段性总结.md`
 - `docs/实验结果摘要.csv`
