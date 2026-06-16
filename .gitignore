@@ -15,6 +15,7 @@ runs/
 weights/
 tmp/
 private/
+release_assets/
 
 *.pt
 *.pth

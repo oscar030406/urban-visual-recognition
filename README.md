@@ -63,6 +63,12 @@ python -m pip install -r requirements.txt
 
 ## 数据要求
 
+完整数据集、最好权重和最好提交包放在 GitHub Release：
+
+```text
+https://github.com/oscar030406/urban-visual-recognition/releases/tag/v1-public-handoff
+```
+
 官方数据目录应包含三模态图像和标签：
 
 ```text
